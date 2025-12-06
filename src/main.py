@@ -1,19 +1,21 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
+import uuid # Biblioteca para gerar códigos únicos (tokens)
 
 app = FastAPI(
     title="SGHSS - API VidaPlus",
     description="Sistema de Gestão Hospitalar - Projeto Multidisciplinar 2025",
-    version="1.1.0"
+    version="1.2.0" # Atualizei a versão
 )
 
-# --- MODELOS DE DADOS (As Entidades) ---
+# --- MODELOS DE DADOS ---
 class Paciente(BaseModel):
     id: Optional[int] = None
     nome: str
     cpf: str
     email: str
+    senha: str # Adicionado campo senha
 
 class Medico(BaseModel):
     id: Optional[int] = None
@@ -25,11 +27,15 @@ class Consulta(BaseModel):
     id: Optional[int] = None
     id_paciente: int
     id_medico: int
-    data_horario: str  # Ex: "2025-10-10 14:00"
+    data_horario: str
     motivo: str
 
-# --- BANCO DE DADOS (Simulado em Memória) ---
-# Usamos listas para guardar os dados enquanto o programa roda
+# Modelo exclusivo para o Login (O que o usuário manda pra logar)
+class LoginData(BaseModel):
+    email: str
+    senha: str
+
+# --- BANCO DE DADOS (Memória) ---
 db_pacientes: List[Paciente] = []
 db_medicos: List[Medico] = []
 db_consultas: List[Consulta] = []
@@ -38,6 +44,30 @@ db_consultas: List[Consulta] = []
 @app.get("/", tags=["Status"])
 def home():
     return {"status": "Sistema VidaPlus operando normalmente"}
+
+# --- ROTAS DE AUTENTICAÇÃO (NOVO!) ---
+@app.post("/login", tags=["Segurança (Auth)"])
+def login(dados: LoginData):
+    # 1. Procura o usuário no banco de pacientes
+    usuario_encontrado = False
+    
+    # Simulação simples: verifica se existe alguém com esse email e senha
+    for p in db_pacientes:
+        if p.email == dados.email and p.senha == dados.senha:
+            usuario_encontrado = True
+            break
+    
+    # 2. Se achou, gera um token falso (mas que parece real)
+    if usuario_encontrado:
+        token_falso = str(uuid.uuid4()) # Gera algo como "a8098c1a-f86e-11da-bd1a..."
+        return {
+            "mensagem": "Login realizado com sucesso",
+            "token": token_falso,
+            "tipo": "Bearer"
+        }
+    else:
+        # Se errou senha ou email
+        raise HTTPException(status_code=401, detail="Email ou senha incorretos")
 
 # --- ROTAS DE PACIENTES ---
 @app.get("/pacientes", tags=["Pacientes"])
@@ -61,34 +91,17 @@ def criar_medico(medico: Medico):
     db_medicos.append(medico)
     return medico
 
-# --- ROTAS DE CONSULTAS (Lógica de Negócio) ---
-@app.get("/consultas", tags=["Agendamentos"])
-def listar_consultas():
-    return db_consultas
-
+# --- ROTAS DE CONSULTAS ---
 @app.post("/consultas", tags=["Agendamentos"], status_code=201)
 def agendar_consulta(consulta: Consulta):
-    # 1. Validar se o paciente existe
-    paciente_encontrado = False
-    for p in db_pacientes:
-        if p.id == consulta.id_paciente:
-            paciente_encontrado = True
-            break
+    # Validações simplificadas
+    if consulta.id_paciente > len(db_pacientes) or consulta.id_medico > len(db_medicos):
+         raise HTTPException(status_code=404, detail="Paciente ou Médico não encontrado")
     
-    if not paciente_encontrado:
-        raise HTTPException(status_code=404, detail="Paciente não encontrado!")
-
-    # 2. Validar se o médico existe
-    medico_encontrado = False
-    for m in db_medicos:
-        if m.id == consulta.id_medico:
-            medico_encontrado = True
-            break
-            
-    if not medico_encontrado:
-        raise HTTPException(status_code=404, detail="Médico não encontrado!")
-
-    # 3. Se tudo ok, agendar
     consulta.id = len(db_consultas) + 1
     db_consultas.append(consulta)
     return consulta
+
+@app.get("/consultas", tags=["Agendamentos"])
+def listar_consultas():
+    return db_consultas
