@@ -1,21 +1,21 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
-import uuid # Biblioteca para gerar códigos únicos (tokens)
+import uuid # Biblioteca para gerar tokens
 
 app = FastAPI(
     title="SGHSS - API VidaPlus",
-    description="Sistema de Gestão Hospitalar - Projeto Multidisciplinar 2025",
-    version="1.2.0" # Atualizei a versão
+    description="Sistema de Gestão Hospitalar - Projeto Desenvolvimento Back-end.",
+    version="1.2.0" 
 )
 
-# --- MODELOS DE DADOS ---
+# --- DADOS ---
 class Paciente(BaseModel):
     id: Optional[int] = None
     nome: str
     cpf: str
     email: str
-    senha: str # Adicionado campo senha
+    senha: str 
 
 class Medico(BaseModel):
     id: Optional[int] = None
@@ -30,7 +30,7 @@ class Consulta(BaseModel):
     data_horario: str
     motivo: str
 
-# Modelo exclusivo para o Login (O que o usuário manda pra logar)
+#  Login
 class LoginData(BaseModel):
     email: str
     senha: str
@@ -45,24 +45,24 @@ db_consultas: List[Consulta] = []
 def home():
     return {"status": "Sistema VidaPlus operando normalmente"}
 
-# --- ROTAS DE AUTENTICAÇÃO (NOVO!) ---
+# --- ROTAS DE AUTENTICAÇÃO  ---
 @app.post("/login", tags=["Segurança (Auth)"])
 def login(dados: LoginData):
     # 1. Procura o usuário no banco de pacientes
     usuario_encontrado = False
     
-    # Simulação simples: verifica se existe alguém com esse email e senha
+    # Verifica se existe alguém com esse email e senha
     for p in db_pacientes:
         if p.email == dados.email and p.senha == dados.senha:
             usuario_encontrado = True
             break
     
-    # 2. Se achou, gera um token falso (mas que parece real)
+    # 2. Se sim, gera um token
     if usuario_encontrado:
-        token_falso = str(uuid.uuid4()) # Gera algo como "a8098c1a-f86e-11da-bd1a..."
+        token_f = str(uuid.uuid4()) # Gera algo como "a8098c1a-f86e-11da-bd1a..."
         return {
             "mensagem": "Login realizado com sucesso",
-            "token": token_falso,
+            "token": token_f,
             "tipo": "Bearer"
         }
     else:
